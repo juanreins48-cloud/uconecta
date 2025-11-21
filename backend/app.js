@@ -20,6 +20,7 @@ import universidadRoutes from "./routes/universidad.routes.js";
 import universidadEstadisticasRoutes from "./routes/universidadEstadisticas.routes.js";
 import usuarioRoutes from "./routes/usuario.routes.js";
 import soporteRoutes from "./routes/soporte.routes.js";
+import testDB from "./routes/testdb.js";
 
 
 const app = express();
@@ -54,11 +55,21 @@ app.use("/api/universidad", universidadEstadisticasRoutes);
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/soporte", soporteRoutes);
 
+app.use("/api/auth/test-db", testDB);
 
 // Archivos estáticos
 app.use('/uploads', express.static(process.env.UPLOAD_DIR || './uploads'));
 
 app.use(errorHandler);
+app.get("/test-db", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT 1");
+    res.json({ success: true, message: "DB CONNECTED", rows });
+  } catch (err) {
+    console.error("DB ERROR:", err);
+    res.json({ success: false, message: "DB ERROR", error: err.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
