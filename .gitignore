@@ -6,8 +6,8 @@ npm-debug.log*
 *.env
 
 # Build
-frontend/build
-uploads
+frontend/build 
+
 
 # OS files
 .DS_Store
