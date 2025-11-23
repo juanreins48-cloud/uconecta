@@ -20,47 +20,48 @@ export default function SubmitCv({ onClose }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const studentId = localStorage.getItem("studentId");
-    if (!studentId) {
-      alert("No studentId found. Please log in again.");
+  const studentId = localStorage.getItem("studentId");
+  if (!studentId) {
+    alert("No studentId found. Please log in again.");
+    return;
+  }
+
+  // Forzar que ningún campo sea undefined
+  const bodyData = Object.fromEntries(
+    Object.entries({
+      studentId,
+      fullName: cv.fullName,
+      email: cv.email,
+      phone: cv.phone,
+      summary: cv.summary,
+      experience: cv.experience,
+      education: cv.education,
+      skills: cv.skills,
+    }).map(([key, value]) => [key, value || ""]) // "" si es undefined o null
+  );
+
+  try {
+    const res = await fetch(`${API_URL}/cv`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bodyData),
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || "Error saving CV");
       return;
     }
 
-    // 🔹 Creamos un objeto seguro evitando undefined
-    const bodyData = {
-      studentId,
-      full_name: cv.fullName || "",
-      email: cv.email || "",
-      phone: cv.phone || "",
-      summary: cv.summary || "",
-      experience: cv.experience || "",
-      education: cv.education || "",
-      skills: cv.skills || "",
-    };
-
-    try {
-      const res = await fetch(`${API_URL}/cv`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyData),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        alert(data.message || "Error saving CV");
-        return;
-      }
-
-      alert("CV saved successfully!");
-      onClose();
-    } catch (err) {
-      console.error("Error saving CV:", err);
-      alert("Server error");
-    }
-  };
+    alert("CV saved successfully!");
+    onClose();
+  } catch (err) {
+    console.error("Error saving CV:", err);
+    alert("Server error");
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
