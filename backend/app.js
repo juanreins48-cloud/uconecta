@@ -40,7 +40,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Rutas API
 app.use('/api/auth', authRoutes);
-app.use('/api/files', filesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use("/api/ofertas", ofertasRoutes);
 app.use("/api/aplicaciones", aplicacionesRoutes);
