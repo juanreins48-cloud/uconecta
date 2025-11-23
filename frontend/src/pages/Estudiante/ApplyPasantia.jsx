@@ -6,7 +6,15 @@ export default function ApplyPasantia() {
   const navigate = useNavigate();
   const [internships, setInternships] = useState([]);
   const [applied, setApplied] = useState([]);
-  const [cv, setCV] = useState(null);
+  const [cv, setCV] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    summary: "",
+    experience: "",
+    education: "",
+    skills: "",
+  });
   const [showCV, setShowCV] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -17,11 +25,7 @@ export default function ApplyPasantia() {
       try {
         const res = await fetch(`${API_URL}/ofertas`);
         const data = await res.json();
-        if (data.success) {
-          setInternships(Array.isArray(data.ofertas) ? data.ofertas : []);
-        } else {
-          alert(data.message || "Error fetching offers");
-        }
+        setInternships(Array.isArray(data.ofertas) ? data.ofertas : []);
       } catch (err) {
         console.error(err);
         alert("Error fetching offers from server");
@@ -47,7 +51,7 @@ export default function ApplyPasantia() {
       });
       const data = await res.json();
       if (!data.success) {
-        alert(data.message);
+        alert(data.message || "Error applying");
         return;
       }
       setApplied([...applied, id]);
@@ -67,12 +71,18 @@ export default function ApplyPasantia() {
     try {
       const res = await fetch(`${API_URL}/cv/${studentId}`);
       const data = await res.json();
-      if (!data.success) {
-        alert(data.message);
-        return;
+      if (data.success && data.cv) {
+        setCV({
+          full_name: data.cv.full_name || "",
+          email: data.cv.email || "",
+          phone: data.cv.phone || "",
+          summary: data.cv.summary || "",
+          experience: data.cv.experience || "",
+          education: data.cv.education || "",
+          skills: data.cv.skills || "",
+        });
+        setShowCV(true);
       }
-      setCV(data.cv);
-      setShowCV(true);
     } catch (err) {
       console.error("Error fetching CV:", err);
       alert("Server error");

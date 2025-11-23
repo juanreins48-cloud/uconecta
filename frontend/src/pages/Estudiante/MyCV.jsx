@@ -2,7 +2,16 @@ import { useState, useEffect } from "react";
 import { API_URL } from "../../services/api.js";
 
 export default function MyCV() {
-  const [cv, setCv] = useState(null);
+  const [cv, setCv] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    summary: "",
+    experience: "",
+    education: "",
+    skills: "",
+  });
+
   const studentId = localStorage.getItem("studentId");
 
   useEffect(() => {
@@ -12,7 +21,17 @@ export default function MyCV() {
       try {
         const res = await fetch(`${API_URL}/cv/${studentId}`);
         const data = await res.json();
-        if (data.success) setCv(data.cv);
+        if (data.success && data.cv) {
+          setCv({
+            full_name: data.cv.full_name || "",
+            email: data.cv.email || "",
+            phone: data.cv.phone || "",
+            summary: data.cv.summary || "",
+            experience: data.cv.experience || "",
+            education: data.cv.education || "",
+            skills: data.cv.skills || "",
+          });
+        }
       } catch (err) {
         console.error("Error loading CV:", err);
       }
