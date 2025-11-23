@@ -1,36 +1,38 @@
 // src/pages/estudiante/ViewCV.jsx
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { API_URL } from "../../services/api.js";
 
 export default function ViewCV() {
   const navigate = useNavigate();
   const { studentId } = useParams();
   const [cv, setCV] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchCV = async () => {
-      try {
-        if (!studentId) {
-          alert("No studentId provided.");
-          setLoading(false);
-          return;
-        }
+      if (!studentId) {
+        setError("No studentId provided.");
+        setLoading(false);
+        return;
+      }
 
-        const res = await fetch(`http://localhost:4000/api/cv/view/${studentId}`);
+      try {
+        const res = await fetch(`${API_URL}/cv/view/${studentId}`);
         const data = await res.json();
 
         if (!data.success) {
-          alert(data.message);
+          setError(data.message || "Error fetching CV");
           setLoading(false);
           return;
         }
 
         setCV(data.cv);
-        setLoading(false);
       } catch (err) {
-        console.error(err);
-        alert("Error fetching CV");
+        console.error("Error fetching CV:", err);
+        setError("Server error fetching CV");
+      } finally {
         setLoading(false);
       }
     };
