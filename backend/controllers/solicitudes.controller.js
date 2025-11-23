@@ -47,7 +47,7 @@ export async function applyInternship(req, res) {
       tipo: "nueva_aplicacion",
       creada_en: new Date()
     });
-
+console.log(">>>> APPLY NUEVO <<<<");
     res.json({ success: true, message: "Application submitted successfully" });
 
   } catch (error) {

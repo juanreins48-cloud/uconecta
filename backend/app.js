@@ -14,7 +14,6 @@ import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import ofertasRoutes from "./routes/ofertas.routes.js";
-import aplicacionesRoutes from "./routes/aplicaciones.routes.js";
 import cvRoutes from "./routes/cv.routes.js";
 import cvViewRoutes from "./routes/cv.view.routes.js";
 import companyRoutes from "./routes/company.js";
@@ -42,7 +41,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use("/api/ofertas", ofertasRoutes);
-app.use("/api/aplicaciones", aplicacionesRoutes);
 app.use("/api/cv", cvRoutes);
 app.use("/api/cv/view", cvViewRoutes);
 

@@ -15,21 +15,35 @@ export default function ManageApplications() {
   const [acceptMessage, setAcceptMessage] = useState("");
 
   useEffect(() => {
-    if (!empresaId) return;
+  if (!empresaId) return;
 
-    fetch(`${API_URL}/solicitudes/company/${empresaId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setStudents(data.data || []);
-        } else {
-          console.error("Error:", data.message);
-          setStudents([]);
-        }
-      })
-      .catch((err) => console.error("Error loading applications:", err))
-      .finally(() => setLoading(false));
-  }, [empresaId]);
+  fetch(`${API_URL}/solicitudes/company/${empresaId}`)
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.success) {
+        const formatted = data.data.map((item) => ({
+          id: item.id,                        // ID del documento Firestore
+          estado: item.estado,
+          aplicacion_id: item.id,             // Para compatibilidad
+          full_name: item.student?.full_name || "",
+          email: item.student?.email || "",
+          phone: item.student?.phone || "",
+          summary: item.cv?.summary || "",
+          experience: item.cv?.experience || "",
+          education: item.cv?.education || "",
+          skills: item.cv?.skills || "",
+        }));
+
+        setStudents(formatted);
+      } else {
+        console.error("Error:", data.message);
+        setStudents([]);
+      }
+    })
+    .catch((err) => console.error("Error loading applications:", err))
+    .finally(() => setLoading(false));
+}, [empresaId]);
+
 
   const handleDecision = async (aplicacionId, decision) => {
     setDecisions({ ...decisions, [aplicacionId]: decision });
