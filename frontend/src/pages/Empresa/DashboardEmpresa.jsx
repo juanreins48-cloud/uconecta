@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../src/services/api";
 
 export default function CompanyDashboard({ empresaId }) {
   const navigate = useNavigate();
@@ -18,7 +19,6 @@ export default function CompanyDashboard({ empresaId }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Tomar empresaId de prop o de localStorage
         const id = empresaId || localStorage.getItem("empresaId");
         if (!id) {
           setError("No se encontró el ID de la empresa");
@@ -26,17 +26,13 @@ export default function CompanyDashboard({ empresaId }) {
           return;
         }
 
-        const res = await fetch(`http://localhost:4000/api/dashboard/empresa/${id}`);
-        if (!res.ok) {
-          throw new Error("Error al cargar datos del dashboard");
-        }
-
+        const res = await fetch(`${API_URL}/dashboard/empresa/${id}`);
         const data = await res.json();
+
         setStats(data.stats);
         setOffers(data.offers);
         setRecent(data.recent);
       } catch (err) {
-        console.error(err);
         setError("Error al cargar el dashboard");
       } finally {
         setLoading(false);

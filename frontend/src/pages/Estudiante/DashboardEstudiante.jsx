@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../src/services/api";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
+
+  const userId = localStorage.getItem("userId");
 
   const [stats, setStats] = useState({
     applications: 0,
@@ -15,18 +18,13 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 🔔 NOTIFICACIONES
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // 🔗 Cargar Dashboard
-
-  const userId = localStorage.getItem("userId");
   useEffect(() => {
     const fetchData = async () => {
       try {
-        
-        const res = await fetch(`http://localhost:4000/api/dashboard/estudiante/${userId}`);
+        const res = await fetch(`${API_URL}/dashboard/estudiante/${userId}`);
         const data = await res.json();
 
         setStats(data.stats);
@@ -41,30 +39,26 @@ export default function StudentDashboard() {
     fetchData();
   }, []);
 
-  // 🔔 Cargar Notificaciones
-const loadNotifications = async () => {
-  const studentId = localStorage.getItem("studentId");
+  const loadNotifications = async () => {
+    const studentId = localStorage.getItem("studentId");
 
-  try {
-    const res = await fetch(`http://localhost:4000/api/notificaciones/${studentId}`);
-    const data = await res.json();
+    try {
+      const res = await fetch(`${API_URL}/notificaciones/${studentId}`);
+      const data = await res.json();
 
-    // ✅ aseguramos que siempre sea un array
-    const notiArray = Array.isArray(data.notifications)
-      ? data.notifications
-      : Array.isArray(data)
-      ? data
-      : [];
+      const notiArray = Array.isArray(data.notifications)
+        ? data.notifications
+        : Array.isArray(data)
+        ? data
+        : [];
 
-    setNotifications(notiArray);
-    setShowNotifications(true);
-  } catch (error) {
-    console.error("Error loading notifications:", error);
-    setNotifications([]); // fallback seguro
-    setShowNotifications(true);
-  }
-};
-
+      setNotifications(notiArray);
+      setShowNotifications(true);
+    } catch (error) {
+      setNotifications([]);
+      setShowNotifications(true);
+    }
+  };
 
   if (loading)
     return <div className="p-10 text-center text-gray-600">Loading information...</div>;

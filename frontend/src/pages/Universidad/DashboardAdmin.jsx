@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../src/services/api";
 
 export default function UniversityDashboard() {
   const navigate = useNavigate();
@@ -14,7 +15,6 @@ export default function UniversityDashboard() {
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // soporte
   const [showSupportPanel, setShowSupportPanel] = useState(false);
   const [supportMessages, setSupportMessages] = useState([]);
   const [supportLoading, setSupportLoading] = useState(false);
@@ -25,19 +25,13 @@ export default function UniversityDashboard() {
       try {
         const userId = localStorage.getItem("userId");
 
-        const res = await fetch(
-          `http://localhost:4000/api/dashboard/universidad/${userId}`
-        );
+        const res = await fetch(`${API_URL}/dashboard/universidad/${userId}`);
         const data = await res.json();
 
-        if (data.success) {
-          setStats(data.stats);
-          setRecent(data.recent);
-        }
-
+        setStats(data.stats);
+        setRecent(data.recent);
         setLoading(false);
       } catch (err) {
-        console.error("Error loading dashboard:", err);
         setLoading(false);
       }
     };
@@ -45,52 +39,34 @@ export default function UniversityDashboard() {
     fetchDashboard();
   }, []);
 
-  // cargar mensajes de soporte (cuando se abra el panel)
   const loadSupportMessages = async () => {
     try {
       setSupportLoading(true);
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:4000/api/soporte", {
+
+      const res = await fetch(`${API_URL}/soporte`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       const data = await res.json();
-      if (data.success) {
-        setSupportMessages(data.data || []);
-      } else {
-        console.error("Error loading support messages:", data.message);
-      }
-    } catch (err) {
-      console.error("Error loading support messages:", err);
+
+      setSupportMessages(data.data || []);
     } finally {
       setSupportLoading(false);
     }
   };
 
-  const openSupportPanel = () => {
-    setShowSupportPanel(true);
-    loadSupportMessages();
-  };
-
-  const closeSupportPanel = () => {
-    setShowSupportPanel(false);
-    setSelectedMessage(null);
-  };
-
   const viewMessageDetail = async (id) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:4000/api/soporte/${id}`, {
+      const res = await fetch(`${API_URL}/soporte/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       const data = await res.json();
-      if (data.success) {
-        setSelectedMessage(data.data);
-      } else {
-        alert(data.message || "No se pudo cargar el mensaje");
-      }
+      setSelectedMessage(data.data);
     } catch (err) {
-      console.error("Error fetching message detail:", err);
-      alert("Error al obtener detalle del mensaje");
+      alert("Error al obtener el mensaje");
     }
   };
 
