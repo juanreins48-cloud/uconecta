@@ -23,23 +23,40 @@ console.log("API_URL:", API_URL);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch(`${API_URL}/dashboard/estudiante/${userId}`);
-        const data = await res.json();
+  // StudentDashboard.jsx
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const res = await fetch(`${API_URL}/dashboard/estudiante/${userId}`);
+      const data = await res.json();
 
-        setStats(data.stats);
-        setRecent(data.recent);
-        setLoading(false);
-      } catch (err) {
-        setError("Error al cargar los datos del dashboard");
-        setLoading(false);
-      }
-    };
+      // Validar que stats y recent existan
+      setStats(data.stats || {
+        applications: 0,
+        interviews: 0,
+        recommendations: 0,
+        views: 0,
+      });
 
-    fetchData();
-  }, []);
+      setRecent(Array.isArray(data.recent) ? data.recent : []);
+    } catch (err) {
+      console.error("Dashboard error:", err);
+      setError("Error al cargar los datos del dashboard");
+      setStats({
+        applications: 0,
+        interviews: 0,
+        recommendations: 0,
+        views: 0,
+      });
+      setRecent([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, [userId]);
+
 
   const loadNotifications = async () => {
     const studentId = localStorage.getItem("studentId");

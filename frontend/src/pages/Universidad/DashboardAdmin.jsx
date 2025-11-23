@@ -20,24 +20,38 @@ export default function UniversityDashboard() {
   const [supportLoading, setSupportLoading] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const userId = localStorage.getItem("userId");
+  // UniversityDashboard.jsx
+useEffect(() => {
+  const fetchDashboard = async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+      const res = await fetch(`${API_URL}/dashboard/universidad/${userId}`);
+      const data = await res.json();
 
-        const res = await fetch(`${API_URL}/dashboard/universidad/${userId}`);
-        const data = await res.json();
+      setStats(data.stats || {
+        students: 0,
+        companies: 0,
+        internships: 0,
+        successRate: 0,
+      });
+      setRecent(Array.isArray(data.recent) ? data.recent : []);
+    } catch (err) {
+      console.error("Dashboard error:", err);
+      setStats({
+        students: 0,
+        companies: 0,
+        internships: 0,
+        successRate: 0,
+      });
+      setRecent([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setStats(data.stats);
-        setRecent(data.recent);
-        setLoading(false);
-      } catch (err) {
-        setLoading(false);
-      }
-    };
+  fetchDashboard();
+}, []);
 
-    fetchDashboard();
-  }, []);
 
   const loadSupportMessages = async () => {
     try {
