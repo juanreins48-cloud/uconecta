@@ -9,45 +9,43 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
 
-    try {//cambiar el api
-      const res = await fetch("http://localhost:4000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+  try {
+    const API_URL = import.meta.env.VITE_API_URL;
 
-      const data = await res.json();
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (!data.success) {
-        alert(data.message);
-        setLoading(false);
-        return;
-      }
+    const data = await res.json();
 
-      // Guardar sesión //por ahora no se guarda en la bd, pones el api y despues quitas el local store
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("role", data.role); // admin, empresa, estudiante
-      localStorage.setItem("userId", data.userId);
-      localStorage.setItem("studentId", data.studentId);
-      localStorage.setItem("empresaId", data.empresaId);
-
-      // Redirigir según el rol
-      if (data.role === "estudiante") navigate("/estudiante");
-      else if (data.role === "empresa") navigate("/empresa");
-      else if (data.role === "universidad") navigate("/university");
-
-      
-
-    } catch (error) {
-      console.error("Error en login:", error);
-      alert("Error en el servidor.");
+    if (!data.success) {
+      alert(data.message);
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
-  };
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", data.role);
+    localStorage.setItem("userId", data.userId);
+    localStorage.setItem("studentId", data.studentId);
+    localStorage.setItem("empresaId", data.empresaId);
+
+    if (data.role === "estudiante") navigate("/estudiante");
+    else if (data.role === "empresa") navigate("/empresa");
+    else if (data.role === "universidad") navigate("/university");
+
+  } catch (error) {
+    console.error("Error en login:", error);
+    alert("Error en el servidor.");
+  }
+
+  setLoading(false);
+};
   
 
   return (
