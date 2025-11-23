@@ -1,12 +1,4 @@
 import { db } from "../db.js";
-import {
-  collection,
-  getDocs,
-  getDoc,
-  query,
-  where,
-  doc,
-} from "firebase/firestore";
 
 // =============================
 // 1. Listado de estudiantes
