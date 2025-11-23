@@ -13,8 +13,9 @@ export default function Login() {
   setLoading(true);
 
   try {
-    const API_URL = import.meta.env.VITE_API_URL;
-    console.log("API_URL =", API_URL); // <- TEMPORAL para probar
+    const API_URL = process.env.REACT_APP_API_URL;
+console.log("API_URL:", API_URL);
+
 
     const res = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
