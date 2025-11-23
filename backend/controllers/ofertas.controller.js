@@ -11,22 +11,24 @@ export async function getOfertas(req, res) {
     const ofertas = [];
 
     for (const doc of snap.docs) {
-  const oferta = doc.data();
+      const oferta = doc.data();
 
-  let empresaNombre = ""; // ✅ inicializamos por defecto
-  if (oferta.empresa_id) {
-    const empresaDoc = await db.collection("empresas").doc(oferta.empresa_id).get();
-    empresaNombre = empresaDoc.exists ? empresaDoc.data().nombre_empresa : "";
-  } else {
-    console.warn(`Oferta ${doc.id} tiene empresa_id vacío`);
-  }
+      let empresaNombre = "";
 
-  ofertas.push({
-    id: doc.id,
-    ...oferta,
-    company: empresaNombre, // ✅ usamos la variable definida
-  });
-}
+      // ✅ Solo hacemos la consulta si existe empresa_id válido
+      if (oferta.empresa_id && oferta.empresa_id.trim() !== "") {
+        const empresaDoc = await db.collection("empresas").doc(oferta.empresa_id).get();
+        empresaNombre = empresaDoc.exists ? empresaDoc.data().nombre_empresa : "";
+      } else {
+        console.warn(`Oferta ${doc.id} tiene empresa_id vacío`);
+      }
+
+      ofertas.push({
+        id: doc.id,
+        ...oferta,
+        company: empresaNombre,
+      });
+    }
 
     res.json({ success: true, ofertas });
 
@@ -35,6 +37,7 @@ export async function getOfertas(req, res) {
     res.status(500).json({ success: false, message: "Error fetching offers" });
   }
 }
+
 
 // CREA oferta
 export async function createOffer(req, res) {
