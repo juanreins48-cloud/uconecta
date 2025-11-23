@@ -1,6 +1,6 @@
 // routes/testdb.js
 import express from "express";
-import { db } from "../firebase.js"; // Firestore
+import { db } from "../db.js"; // Firestore
 
 const router = express.Router();
 

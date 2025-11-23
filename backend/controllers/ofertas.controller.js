@@ -1,4 +1,4 @@
-import { db } from "../firebase.js";
+import { db } from "../db.js";
 
 // GET Ofertas activas
 export async function getOfertas(req, res) {

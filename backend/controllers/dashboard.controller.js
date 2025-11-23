@@ -1,4 +1,4 @@
-import { db } from "../firebase.js";
+import { db } from "../db.js";
 
 // CREATE widget
 export async function createWidget(req, res, next) {
