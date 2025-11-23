@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../../services/api.js";
 
 export default function SubmitCv({ onClose }) {
   const navigate = useNavigate();
-
   const [cv, setCV] = useState({
     fullName: "",
     email: "",
@@ -14,9 +14,7 @@ export default function SubmitCv({ onClose }) {
     skills: "",
   });
 
-  const handleChange = (e) => {
-    setCV({ ...cv, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setCV({ ...cv, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,26 +26,22 @@ export default function SubmitCv({ onClose }) {
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/cv", {
+      const res = await fetch(`${API_URL}/cv`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId,
-
-          // 🔥 Corrección: coincide con el campo de la DB
           full_name: cv.fullName,
-
           email: cv.email,
           phone: cv.phone,
           summary: cv.summary,
           experience: cv.experience,
           education: cv.education,
-          skills: cv.skills
+          skills: cv.skills,
         }),
       });
 
       const data = await res.json();
-
       if (!data.success) {
         alert(data.message);
         return;
@@ -60,6 +54,8 @@ export default function SubmitCv({ onClose }) {
       alert("Server error");
     }
   };
+
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">

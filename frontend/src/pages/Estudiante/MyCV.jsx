@@ -1,28 +1,26 @@
 import { useState, useEffect } from "react";
+import { API_URL } from "../../services/api.js";
 
 export default function MyCV() {
   const [cv, setCv] = useState(null);
-  const studentId = localStorage.getItem("userId");
+  const studentId = localStorage.getItem("studentId");
 
   useEffect(() => {
-    fetch(`http://localhost:4000/api/cv/${studentId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setCv(data.cv);
-        }
-      })
-      .catch((err) => console.error("Error loading CV:", err));
+    if (!studentId) return;
+
+    const fetchCV = async () => {
+      try {
+        const res = await fetch(`${API_URL}/cv/${studentId}`);
+        const data = await res.json();
+        if (data.success) setCv(data.cv);
+      } catch (err) {
+        console.error("Error loading CV:", err);
+      }
+    };
+
+    fetchCV();
   }, [studentId]);
 
-  if (!cv) {
-    return (
-      <div className="p-6 text-center text-gray-600">
-        <h2 className="text-xl font-bold">My CV</h2>
-        <p className="mt-4">You have not uploaded a CV yet.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">

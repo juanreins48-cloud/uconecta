@@ -1,21 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../../services/api.js";
 
 export default function ApplyPasantia() {
   const navigate = useNavigate();
   const [internships, setInternships] = useState([]);
   const [applied, setApplied] = useState([]);
-  const [cv, setCV] = useState(null); // Para guardar el CV
-  const [showCV, setShowCV] = useState(false); // Modal control
-  const [loading, setLoading] = useState(true); // Loader para ofertas
+  const [cv, setCV] = useState(null);
+  const [showCV, setShowCV] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const studentId = localStorage.getItem("studentId");
 
   useEffect(() => {
     const fetchInternships = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/ofertas");
+        const res = await fetch(`${API_URL}/ofertas`);
         const data = await res.json();
         if (data.success) {
-          setInternships(data.ofertas);
+          setInternships(Array.isArray(data.ofertas) ? data.ofertas : []);
         } else {
           alert(data.message || "Error fetching offers");
         }
@@ -31,35 +34,29 @@ export default function ApplyPasantia() {
   }, []);
 
   const applyToInternship = async (id) => {
-    try {
-      const studentId = localStorage.getItem("studentId");
-      if (!studentId) {
-        alert("No studentId found. Please log in again.");
-        return;
-      }
+    if (!studentId) {
+      alert("No studentId found. Please log in again.");
+      return;
+    }
 
-      const res = await fetch("http://localhost:4000/api/aplicaciones", {
+    try {
+      const res = await fetch(`${API_URL}/aplicaciones`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ studentId, internshipId: id }),
       });
-
       const data = await res.json();
-
       if (!data.success) {
         alert(data.message);
         return;
       }
-
       setApplied([...applied, id]);
       alert("Aplicación enviada correctamente");
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       alert("Error al aplicar");
     }
   };
-
-  const studentId = localStorage.getItem("studentId");
 
   const fetchCV = async () => {
     if (!studentId) {
@@ -68,7 +65,7 @@ export default function ApplyPasantia() {
     }
 
     try {
-      const res = await fetch(`http://localhost:4000/api/cv/${studentId}`);
+      const res = await fetch(`${API_URL}/cv/${studentId}`);
       const data = await res.json();
       if (!data.success) {
         alert(data.message);
@@ -81,6 +78,7 @@ export default function ApplyPasantia() {
       alert("Server error");
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
