@@ -1,13 +1,4 @@
 import { db } from "../db.js";
-import {
-  doc,
-  collection,
-  getDoc,
-  getDocs,
-  updateDoc,
-  query,
-  where,
-} from "firebase/firestore";
 import bcrypt from "bcrypt";
 
 // GET /api/usuario/me
