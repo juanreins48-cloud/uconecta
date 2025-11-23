@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 export default function Register() {
   const navigate = useNavigate();
 
+  const API_URL = process.env.REACT_APP_API_URL;
+
   const [role, setRole] = useState("Student");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -16,8 +18,8 @@ export default function Register() {
     setLoading(true);
     setErrorMsg("");
 
-    try {//cambiar api
-      const response = await fetch("http://localhost:4000/api/auth/register", {
+    try {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -36,9 +38,7 @@ export default function Register() {
         return;
       }
 
-      // REGISTRO EXITOSO: redirigir al login
       navigate("/");
-
     } catch (error) {
       setErrorMsg("Server error. Try again later.");
       console.error(error);
@@ -50,8 +50,7 @@ export default function Register() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
       <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md">
-        
-        {/* LOGO */}
+
         <div className="flex flex-col items-center mb-6">
           <div className="w-16 h-16 bg-teal-700 text-white rounded-full flex items-center justify-center text-xl font-bold">
             UC
@@ -62,12 +61,8 @@ export default function Register() {
           </p>
         </div>
 
-        {/* SWITCH LOGIN/REGISTER */}
         <div className="flex bg-gray-200 rounded-full mb-6">
-          <button
-            className="w-1/2 py-2 text-gray-500"
-            onClick={() => navigate("/")}
-          >
+          <button className="w-1/2 py-2 text-gray-500" onClick={() => navigate("/")}>
             Login
           </button>
 
@@ -76,14 +71,12 @@ export default function Register() {
           </button>
         </div>
 
-        {/* TITLE */}
         <h2 className="text-lg font-semibold mb-4">Create account</h2>
 
         {errorMsg && (
           <p className="text-red-500 text-sm mb-3 text-center">{errorMsg}</p>
         )}
 
-        {/* FORM */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-sm font-semibold">I am a</label>
