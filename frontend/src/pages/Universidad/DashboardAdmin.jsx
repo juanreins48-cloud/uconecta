@@ -69,6 +69,17 @@ export default function UniversityDashboard() {
       alert("Error al obtener el mensaje");
     }
   };
+// ABRIR PANEL DE SOPORTE
+const openSupportPanel = () => {
+  setShowSupportPanel(true);
+  loadSupportMessages();
+};
+
+// CERRAR PANEL
+const closeSupportPanel = () => {
+  setShowSupportPanel(false);
+  setSelectedMessage(null);
+};
 
   if (loading) {
     return <div className="p-10 text-center text-gray-600">Loading dashboard...</div>;
