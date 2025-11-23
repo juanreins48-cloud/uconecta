@@ -13,16 +13,11 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
-app.get("/run-migration", async (req, res) => {
-  try {
-    const { main } = await import("./migrate.js");
-    await main();
-    res.send("Migración completa.");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error en migración.");
-  }
-});
 
+// Firestore
+export const db = admin.firestore();
+
+// Auth si lo necesitas
+export const auth = admin.auth();
 
 export default pool;
