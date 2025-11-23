@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../../services/api.js"; // ✅ usar variable de entorno
 
 export default function PostOffer() {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ export default function PostOffer() {
     requirements: "",
     location: "",
     modalidad: "presencial",
-    remuneracion: "",
+    remuneracion: "", // nombre debe coincidir con input
   });
 
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,6 @@ export default function PostOffer() {
     setLoading(true);
 
     try {
-      // Tomar empresaId desde localStorage
       const empresaId = localStorage.getItem("empresaId");
       if (!empresaId) {
         alert("No se encontró el ID de la empresa. Por favor inicia sesión de nuevo.");
@@ -32,8 +32,7 @@ export default function PostOffer() {
         return;
       }
 
-      // Enviar datos al backend
-      const res = await fetch("http://localhost:4000/api/ofertas", {
+      const res = await fetch(`${API_URL}/ofertas`, { // ✅ usar API_URL
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -56,7 +55,7 @@ export default function PostOffer() {
       }
 
       alert("Oferta publicada correctamente!");
-      navigate("/company"); // Volver al dashboard
+      navigate("/company"); 
     } catch (err) {
       console.error("Error posting offer:", err);
       alert("Error del servidor");

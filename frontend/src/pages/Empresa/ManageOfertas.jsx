@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../../services/api.js";
 
 export default function ManageApplications() {
   const navigate = useNavigate();
@@ -10,14 +11,13 @@ export default function ManageApplications() {
   const [loading, setLoading] = useState(true);
   const [selectedCV, setSelectedCV] = useState(null);
 
-  // Modal para aceptar y enviar mensaje
-  const [showAcceptModal, setShowAcceptModal] = useState(null); // guardamos el objeto student
+  const [showAcceptModal, setShowAcceptModal] = useState(null);
   const [acceptMessage, setAcceptMessage] = useState("");
 
   useEffect(() => {
     if (!empresaId) return;
 
-    fetch(`http://localhost:4000/api/solicitudes/company/${empresaId}`)
+    fetch(`${API_URL}/solicitudes/company/${empresaId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
@@ -35,7 +35,7 @@ export default function ManageApplications() {
     setDecisions({ ...decisions, [aplicacionId]: decision });
 
     try {
-      await fetch(`http://localhost:4000/api/solicitudes/${aplicacionId}`, {
+      await fetch(`${API_URL}/solicitudes/${aplicacionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: decision }),
@@ -45,7 +45,6 @@ export default function ManageApplications() {
     }
   };
 
-  // Abrir modal CV (usa los campos que vienen del backend)
   const viewCV = (student) => {
     const cvData = {
       full_name: student.full_name || student.cv_nombre || student.estudiante_nombre,
@@ -61,20 +60,18 @@ export default function ManageApplications() {
     setSelectedCV(cvData);
   };
 
-  // Abrir modal aceptar (empresa escribe mensaje)
   const openAcceptModal = (student) => {
     setShowAcceptModal(student);
-    setAcceptMessage(""); // limpiar
+    setAcceptMessage("");
   };
 
-  // Enviar aceptación con mensaje al backend
   const sendAcceptance = async () => {
     if (!showAcceptModal) return;
 
     const aplicacionId = showAcceptModal.aplicacion_id;
 
     try {
-      await fetch(`http://localhost:4000/api/solicitudes/${aplicacionId}`, {
+      await fetch(`${API_URL}/solicitudes/${aplicacionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -83,14 +80,12 @@ export default function ManageApplications() {
         }),
       });
 
-      // actualizar estado en la UI localmente y cerrar modal
       setDecisions({ ...decisions, [aplicacionId]: "aceptado" });
       setShowAcceptModal(null);
       setAcceptMessage("");
 
-      // recargar lista de aplicaciones (opcional)
       setLoading(true);
-      const res = await fetch(`http://localhost:4000/api/solicitudes/company/${empresaId}`);
+      const res = await fetch(`${API_URL}/solicitudes/company/${empresaId}`);
       const data = await res.json();
       if (data.success) setStudents(data.data || []);
       setLoading(false);
