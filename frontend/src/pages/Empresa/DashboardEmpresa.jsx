@@ -1,3 +1,4 @@
+// src/pages/Empresa/DashboardEmpresa.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../services/api.js";
@@ -8,14 +9,10 @@ export default function CompanyDashboard({ empresaId }) {
   const [offers, setOffers] = useState([]);
   const [stats, setStats] = useState({
     activeOffers: 0,
-  applications: 0,
-  interviews: 0,
-  filled: 0
-});
-setOffers(Array.isArray(data?.offers) ? data.offers : []);
-setRecent(Array.isArray(data?.recent) ? data.recent : []);
-
-
+    applications: 0,
+    interviews: 0,
+    filled: 0,
+  });
   const [recent, setRecent] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,26 +28,29 @@ setRecent(Array.isArray(data?.recent) ? data.recent : []);
         }
 
         const res = await fetch(`${API_URL}/dashboard/empresa/${id}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
         const data = await res.json();
 
-        // Si el backend falla o no devuelve algo, se asigna un valor por defecto
+        // ⚡ Valores por defecto para evitar undefined
         setStats(data?.stats || {
           activeOffers: 0,
           applications: 0,
           interviews: 0,
-          filled: 0
+          filled: 0,
         });
         setOffers(Array.isArray(data?.offers) ? data.offers : []);
         setRecent(Array.isArray(data?.recent) ? data.recent : []);
       } catch (err) {
-        console.error("Error fetching company dashboard:", err);
+        console.error("Error fetching dashboard:", err);
         setError("Error al cargar el dashboard");
-        // Mantener valores por defecto
         setStats({
           activeOffers: 0,
           applications: 0,
           interviews: 0,
-          filled: 0
+          filled: 0,
         });
         setOffers([]);
         setRecent([]);
