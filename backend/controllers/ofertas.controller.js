@@ -15,12 +15,12 @@ export async function getOfertas(req, res) {
 
       let empresaNombre = "";
 
-      // ✅ Solo hacemos la consulta si existe empresa_id válido
-      if (oferta.empresa_id && oferta.empresa_id.trim() !== "") {
+      // ✅ Validación segura
+      if (typeof oferta.empresa_id === "string" && oferta.empresa_id.trim() !== "") {
         const empresaDoc = await db.collection("empresas").doc(oferta.empresa_id).get();
         empresaNombre = empresaDoc.exists ? empresaDoc.data().nombre_empresa : "";
       } else {
-        console.warn(`Oferta ${doc.id} tiene empresa_id vacío`);
+        console.warn(`Oferta ${doc.id} tiene empresa_id inválido:`, oferta.empresa_id);
       }
 
       ofertas.push({
