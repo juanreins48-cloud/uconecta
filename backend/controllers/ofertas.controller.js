@@ -13,10 +13,13 @@ export async function getOfertas(req, res) {
     for (const doc of snap.docs) {
       const oferta = doc.data();
 
-      // obtener nombre de empresa
-      const empresaDoc = await db.collection("empresas").doc(oferta.empresa_id).get();
-      const empresa = empresaDoc.exists ? empresaDoc.data().nombre_empresa : "";
-
+      let empresaNombre = "";
+  if (oferta.empresa_id) { // ✅ verificamos que no sea vacío
+    const empresaDoc = await db.collection("empresas").doc(oferta.empresa_id).get();
+    empresaNombre = empresaDoc.exists ? empresaDoc.data().nombre_empresa : "";
+  } else {
+    console.warn(`Oferta ${doc.id} tiene empresa_id vacío`);
+  }
       ofertas.push({
         id: doc.id,
         ...oferta,
