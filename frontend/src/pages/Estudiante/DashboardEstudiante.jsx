@@ -6,6 +6,8 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
 
   const userId = localStorage.getItem("userId");
+  const API_URL = process.env.REACT_APP_API_URL;
+console.log("API_URL:", API_URL);
 
   const [stats, setStats] = useState({
     applications: 0,
