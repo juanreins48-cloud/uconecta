@@ -1,23 +1,24 @@
-// db.js
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+// db.js — Firestore solamente (sin MySQL)
+import admin from "firebase-admin";
+import dotenv from "dotenv";
 dotenv.config();
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+// Evitar doble inicialización en desarrollo y producción
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      project_id: process.env.FIREBASE_PROJECT_ID,
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+    }),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  });
+}
 
-// Firestore
+// Exportar Firestore y Auth
 export const db = admin.firestore();
-
-// Auth si lo necesitas
 export const auth = admin.auth();
+export const bucket = admin.storage().bucket();
 
-export default pool;
+// Para compatibilidad con importaciones antiguas
+export default db;
