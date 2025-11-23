@@ -14,6 +14,7 @@ export default function Login() {
 
   try {
     const API_URL = import.meta.env.VITE_API_URL;
+    console.log("API_URL =", API_URL); // <- TEMPORAL para probar
 
     const res = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
