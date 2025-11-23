@@ -11,21 +11,22 @@ export async function getOfertas(req, res) {
     const ofertas = [];
 
     for (const doc of snap.docs) {
-      const oferta = doc.data();
+  const oferta = doc.data();
 
-      let empresaNombre = "";
-  if (oferta.empresa_id) { // ✅ verificamos que no sea vacío
+  let empresaNombre = ""; // ✅ inicializamos por defecto
+  if (oferta.empresa_id) {
     const empresaDoc = await db.collection("empresas").doc(oferta.empresa_id).get();
     empresaNombre = empresaDoc.exists ? empresaDoc.data().nombre_empresa : "";
   } else {
     console.warn(`Oferta ${doc.id} tiene empresa_id vacío`);
   }
-      ofertas.push({
-        id: doc.id,
-        ...oferta,
-        company: empresa
-      });
-    }
+
+  ofertas.push({
+    id: doc.id,
+    ...oferta,
+    company: empresaNombre, // ✅ usamos la variable definida
+  });
+}
 
     res.json({ success: true, ofertas });
 
