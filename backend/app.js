@@ -12,7 +12,6 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 // Rutas
 import authRoutes from './routes/auth.routes.js';
-import filesRoutes from './routes/files.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import ofertasRoutes from "./routes/ofertas.routes.js";
 import aplicacionesRoutes from "./routes/aplicaciones.routes.js";
