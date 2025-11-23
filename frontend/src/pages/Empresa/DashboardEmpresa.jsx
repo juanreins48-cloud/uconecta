@@ -8,10 +8,14 @@ export default function CompanyDashboard({ empresaId }) {
   const [offers, setOffers] = useState([]);
   const [stats, setStats] = useState({
     activeOffers: 0,
-    applications: 0,
-    interviews: 0,
-    filled: 0
-  });
+  applications: 0,
+  interviews: 0,
+  filled: 0
+});
+setOffers(Array.isArray(data?.offers) ? data.offers : []);
+setRecent(Array.isArray(data?.recent) ? data.recent : []);
+
+
   const [recent, setRecent] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
