@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL } from "../src/services/api.js";
+import { API_URL } from "../../services/api.js";
 
 export default function CompanyDashboard({ empresaId }) {
   const navigate = useNavigate();
