@@ -1,14 +1,14 @@
+// routes/universidad.routes.js
 import { Router } from "express";
 import {
   estudiantesPendientes,
   validarEstudiante,
-  reportarEstudiante
-} from "../controllers/universidad.controller.js";
-import {
+  reportarEstudiante,
   getEmpresasPendientes,
   validarEmpresa,
   reportarEmpresa
 } from "../controllers/universidad.controller.js";
+
 import {
   getAllStudents,
   getAllCompanies,
@@ -17,18 +17,19 @@ import {
   getAcceptedApplications
 } from "../controllers/universidadEstadisticas.controller.js";
 
-
 const router = Router();
 
+// Estudiantes
 router.get("/estudiantes-pendientes", estudiantesPendientes);
 router.post("/validar-estudiante", validarEstudiante);
 router.post("/reportar-estudiante", reportarEstudiante);
 
-//Empresas pendientes de validación
+// Empresas
 router.get("/empresas-pendientes", getEmpresasPendientes);
 router.post("/validar-empresa", validarEmpresa);
 router.post("/reportar-empresa", reportarEmpresa);
-//Estadisticas 
+
+// Estadísticas
 router.get("/estadisticas/estudiantes", getAllStudents);
 router.get("/estadisticas/empresas", getAllCompanies);
 router.get("/estadisticas/ofertas", getAllOffers);

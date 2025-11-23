@@ -1,8 +1,9 @@
-import pool from "../db.js";
+// controllers/solicitudes.controller.js
+import { db } from "../db.js";
 
-// ---------------------------------------------
-// Estudiante aplica a una oferta
-// ---------------------------------------------
+/**
+ * Estudiante aplica a una oferta
+ */
 export async function applyInternship(req, res) {
   try {
     const { studentId, internshipId } = req.body;
@@ -12,39 +13,40 @@ export async function applyInternship(req, res) {
     }
 
     // verificar si ya aplicó
-    const [exists] = await pool.query(
-      "SELECT * FROM aplicaciones WHERE estudiante_id = ? AND oferta_id = ?",
-      [studentId, internshipId]
-    );
+    const existsSnap = await db.collection("aplicaciones")
+      .where("estudiante_id", "==", String(studentId))
+      .where("oferta_id", "==", String(internshipId))
+      .limit(1)
+      .get();
 
-    if (exists.length > 0) {
+    if (!existsSnap.empty) {
       return res.status(400).json({ success: false, message: "Already applied" });
     }
 
-    // obtener empresa_id desde oferta
-    const [offer] = await pool.query(
-      "SELECT empresa_id, titulo FROM ofertas WHERE id = ?",
-      [internshipId]
-    );
-
-    if (offer.length === 0) {
+    // obtener oferta para sacar empresa_id y titulo
+    const offerDoc = await db.collection("ofertas").doc(String(internshipId)).get();
+    if (!offerDoc.exists) {
       return res.status(400).json({ success: false, message: "Offer not found" });
     }
-
-    const empresaId = offer[0].empresa_id;
-    const title = offer[0].titulo;
+    const offerData = offerDoc.data();
+    const empresaId = offerData.empresa_id;
+    const title = offerData.titulo || "";
 
     // insertar aplicación
-    await pool.query(
-      "INSERT INTO aplicaciones (estudiante_id, oferta_id) VALUES (?, ?)",
-      [studentId, internshipId]
-    );
+    await db.collection("aplicaciones").add({
+      estudiante_id: String(studentId),
+      oferta_id: String(internshipId),
+      estado: "enviado",
+      creada_en: new Date()
+    });
 
     // insertar actividad para la empresa
-    await pool.query(
-      "INSERT INTO actividad_empresa (empresa_id, descripcion, tipo) VALUES (?, ?, 'nueva_aplicacion')",
-      [empresaId, `Nueva aplicación recibida para ${title}`]
-    );
+    await db.collection("actividad_empresa").add({
+      empresa_id: String(empresaId),
+      descripcion: `Nueva aplicación recibida para ${title}`,
+      tipo: "nueva_aplicacion",
+      creada_en: new Date()
+    });
 
     res.json({ success: true, message: "Application submitted successfully" });
 
@@ -54,58 +56,121 @@ export async function applyInternship(req, res) {
   }
 }
 
-// ---------------------------------------------
-// Obtener aplicaciones que recibió una empresa
-// ---------------------------------------------
+/**
+ * Obtener aplicaciones que recibió una empresa
+ */
 export async function getApplicationsByCompany(req, res) {
   try {
     const { empresaId } = req.params;
+    const empresaIdStr = String(empresaId);
 
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        a.id AS aplicacion_id,
-        a.estado,
-        a.creada_en,
-        e.id AS estudiante_id,
-        u.nombre AS estudiante_nombre,
-        u.email AS estudiante_email,
-        o.id AS oferta_id,
-        o.titulo AS oferta_titulo,
-        cv.full_name AS full_name,
-        cv.email AS email,
-        cv.phone AS phone,
-        cv.summary,
-        cv.experience,
-        cv.education,
-        cv.skills
-      FROM aplicaciones a
-      INNER JOIN estudiantes e ON a.estudiante_id = e.id
-      INNER JOIN usuarios u ON e.usuario_id = u.id
-      INNER JOIN ofertas o ON a.oferta_id = o.id
-      LEFT JOIN cv_estudiantes cv
-        ON cv.estudiante_id = e.id
-        AND cv.actualizado_en = (
-          SELECT MAX(actualizado_en)
-          FROM cv_estudiantes
-          WHERE estudiante_id = e.id
-        )
-      WHERE o.empresa_id = ?
-      ORDER BY a.creada_en DESC
-      `,
-      [empresaId]
-    );
+    // 1) Traer todas las ofertas de la empresa
+    const ofertasSnap = await db.collection("ofertas")
+      .where("empresa_id", "==", empresaIdStr)
+      .get();
 
-    return res.json({ success: true, data: rows });
+    if (ofertasSnap.empty) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const ofertaIds = ofertasSnap.docs.map(d => d.id);
+    const ofertaMap = new Map();
+    ofertasSnap.docs.forEach(d => ofertaMap.set(d.id, d.data()));
+
+    // 2) Traer aplicaciones relacionadas (si hay <=10 ofertas usamos 'in', si no, traemos todas y filtramos)
+    let aplicaciones = [];
+    if (ofertaIds.length <= 10) {
+      const appsSnap = await db.collection("aplicaciones")
+        .where("oferta_id", "in", ofertaIds)
+        .orderBy("creada_en", "desc")
+        .get();
+      aplicaciones = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } else {
+      // muchas ofertas: leer todas las aplicaciones y filtrar (evitar fallos por límite "in")
+      const appsSnap = await db.collection("aplicaciones").orderBy("creada_en", "desc").get();
+      aplicaciones = appsSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(a => ofertaIds.includes(a.oferta_id));
+    }
+
+    if (aplicaciones.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // 3) Preparar sets de ids para fetchs en lote
+    const estudianteIdsSet = new Set(aplicaciones.map(a => String(a.estudiante_id)));
+    const estudianteIds = Array.from(estudianteIdsSet);
+
+    // 4) Obtener estudiantes -> usuario_id
+    const estudiantesMap = new Map(); // estudianteId => estudianteData (including usuario_id)
+    for (const sid of estudianteIds) {
+      const sdoc = await db.collection("estudiantes").doc(String(sid)).get();
+      if (sdoc.exists) estudiantesMap.set(sid, { id: sdoc.id, ...sdoc.data() });
+    }
+
+    // 5) Obtener usuarios para los estudiantes (batch)
+    const usuarioIdsSet = new Set();
+    for (const [, est] of estudiantesMap) {
+      if (est.usuario_id) usuarioIdsSet.add(String(est.usuario_id));
+    }
+    const usuarioIds = Array.from(usuarioIdsSet);
+    const usuariosMap = new Map();
+    for (const uid of usuarioIds) {
+      const udoc = await db.collection("usuarios").doc(String(uid)).get();
+      if (udoc.exists) usuariosMap.set(uid, { id: udoc.id, ...udoc.data() });
+    }
+
+    // 6) Obtener CVs (último por estudiante) - si en tu migración dejaste cv_estudiantes con actualizado_en
+    const cvMap = new Map(); // estudianteId => cvData
+    for (const sid of estudianteIds) {
+      // buscar cv_estudiantes con estudiante_id == sid, ordenando por actualizado_en desc limit 1
+      const cvsnap = await db.collection("cv_estudiantes")
+        .where("estudiante_id", "==", String(sid))
+        .orderBy("actualizado_en", "desc")
+        .limit(1)
+        .get();
+      if (!cvsnap.empty) {
+        cvMap.set(sid, cvsnap.docs[0].data());
+      }
+    }
+
+    // 7) Construir respuesta final
+    const data = aplicaciones.map(a => {
+      const estudiante = estudiantesMap.get(String(a.estudiante_id)) || null;
+      const usuario = estudiante && estudiante.usuario_id ? usuariosMap.get(String(estudiante.usuario_id)) : null;
+      const oferta = ofertaMap.get(String(a.oferta_id)) || {};
+      const cv = cvMap.get(String(a.estudiante_id)) || null;
+
+      return {
+        aplicacion_id: a.id,
+        estado: a.estado,
+        creada_en: a.creada_en || null,
+        estudiante_id: estudiante ? estudiante.id : null,
+        estudiante_nombre: usuario ? usuario.nombre : null,
+        estudiante_email: usuario ? usuario.email : null,
+        oferta_id: a.oferta_id,
+        oferta_titulo: oferta.titulo || null,
+        full_name: cv ? cv.full_name : null,
+        email: cv ? cv.email : null,
+        phone: cv ? cv.phone : null,
+        summary: cv ? cv.summary : null,
+        experience: cv ? cv.experience : null,
+        education: cv ? cv.education : null,
+        skills: cv ? cv.skills : null
+      };
+    });
+
+    return res.json({ success: true, data });
 
   } catch (error) {
     console.error("ERROR getApplicationsByCompany:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 }
-// ---------------------------------------------
-// Cambiar estado de una aplicación + notificación detallada
-// ---------------------------------------------
+
+/**
+ * Cambiar estado de una aplicación + notificación detallada
+ */
 export async function updateApplicationStatus(req, res) {
   try {
     const { id } = req.params;
@@ -115,36 +180,24 @@ export async function updateApplicationStatus(req, res) {
       return res.status(400).json({ success: false, message: "Missing status" });
     }
 
-    // 1️⃣ Obtener datos de la aplicación
-    const [app] = await pool.query(
-      `SELECT estudiante_id, oferta_id
-       FROM aplicaciones
-       WHERE id = ?`,
-      [id]
-    );
-
-    if (app.length === 0) {
+    // 1) Obtener la aplicación
+    const appRef = db.collection("aplicaciones").doc(String(id));
+    const appDoc = await appRef.get();
+    if (!appDoc.exists) {
       return res.status(404).json({ success: false, message: "Application not found" });
     }
+    const appData = appDoc.data();
+    const estudianteId = appData.estudiante_id;
+    const ofertaId = appData.oferta_id;
 
-    const estudianteId = app[0].estudiante_id;
-    const ofertaId = app[0].oferta_id;
+    // 2) Obtener info de la oferta
+    const offerDoc = await db.collection("ofertas").doc(String(ofertaId)).get();
+    const tituloOferta = offerDoc.exists ? (offerDoc.data().titulo || "una oferta") : "una oferta";
 
-    // 2️⃣ Obtener información de la oferta
-    const [offer] = await pool.query(
-      "SELECT titulo FROM ofertas WHERE id = ?",
-      [ofertaId]
-    );
+    // 3) Actualizar estado
+    await appRef.update({ estado: status });
 
-    const tituloOferta = offer.length > 0 ? offer[0].titulo : "una oferta";
-
-    // 3️⃣ Actualizar el estado
-    await pool.query(
-      "UPDATE aplicaciones SET estado = ? WHERE id = ?",
-      [status, id]
-    );
-
-    // 4️⃣ Construir notificación
+    // 4) Construir notificación
     let mensajeNotificacion = "";
 
     if (status === "aceptado") {
@@ -157,21 +210,23 @@ export async function updateApplicationStatus(req, res) {
         mensajeNotificacion +=
           "La empresa pronto se pondrá en contacto contigo para continuar con el proceso.";
       }
-    }
-
-    if (status === "rechazado") {
+    } else if (status === "rechazado") {
       mensajeNotificacion =
-        `Tu aplicación a la pasantía **${tituloOferta}** ha sido rechazada.\n\n`;
-
-      mensajeNotificacion += "Sigue intentándolo, ¡nuevas oportunidades vienen pronto!";
+        `Tu aplicación a la pasantía **${tituloOferta}** ha sido rechazada.\n\n` +
+        "Sigue intentándolo, ¡nuevas oportunidades vienen pronto!";
+    } else {
+      // otros estados: enviar notificación genérica
+      mensajeNotificacion = `El estado de tu aplicación para ${tituloOferta} cambió a: ${status}.`;
+      if (mensaje && mensaje.trim() !== "") mensajeNotificacion += `\n\nMensaje de la empresa:\n"${mensaje}"`;
     }
 
-    // 5️⃣ Guardar notificación
-    await pool.query(
-      `INSERT INTO notificaciones_estudiante (estudiante_id, mensaje)
-       VALUES (?, ?)`,
-      [estudianteId, mensajeNotificacion]
-    );
+    // 5) Guardar notificación
+    await db.collection("notificaciones_estudiante").add({
+      estudiante_id: String(estudianteId),
+      mensaje: mensajeNotificacion,
+      creada_en: new Date(),
+      leida: false
+    });
 
     return res.json({
       success: true,

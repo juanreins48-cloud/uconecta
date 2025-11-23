@@ -1,64 +1,74 @@
 // controllers/auth.controller.js
-import pool from "../db.js";
+import { db } from "../db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 // REGISTER
 export async function register(req, res) {
   try {
-    console.log("REQ BODY:", req.body); // DEBUG
-
     const { role, name, email, password } = req.body;
 
     if (!role || !name || !email || !password) {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    // Conversión roles frontend → backend
     const rolesMap = {
-      "Student": "estudiante",
-      "Company": "empresa",
-      "University": "universidad",
+      Student: "estudiante",
+      Company: "empresa",
+      University: "universidad",
     };
 
     const rol = rolesMap[role];
     if (!rol) return res.status(400).json({ message: "Invalid role" });
 
-    // Encriptar contraseña
+    // 1️⃣ Validar email único
+    const existing = await db
+      .collection("usuarios")
+      .where("email", "==", email)
+      .get();
+
+    if (!existing.empty)
+      return res
+        .status(400)
+        .json({ message: "Email already registered" });
+
     const hashed = await bcrypt.hash(password, 10);
 
-    // Insertar en usuarios
-    const [result] = await pool.query(
-      "INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)",
-      [name, email, hashed, rol]
-    );
+    // 2️⃣ Crear usuario
+    const userRef = await db.collection("usuarios").add({
+      nombre: name,
+      email,
+      password: hashed,
+      rol,
+      created_at: new Date(),
+    });
 
-    const userId = result.insertId;
+    const userId = userRef.id;
 
-    // Insertar tabla por rol
+    // 3️⃣ Crear subtabla según rol
     if (rol === "estudiante") {
-      await pool.query(
-        "INSERT INTO estudiantes (usuario_id) VALUES (?)",
-        [userId]
-      );
+      await db.collection("estudiantes").add({
+        usuario_id: userId,
+        validado: false,
+      });
     }
 
     if (rol === "empresa") {
-      await pool.query(
-        "INSERT INTO empresas (usuario_id, nombre_empresa) VALUES (?, '')",
-        [userId]
-      );
+      await db.collection("empresas").add({
+        usuario_id: userId,
+        nombre_empresa: "",
+        validado: false,
+      });
     }
 
     if (rol === "universidad") {
-      await pool.query(
-        "INSERT INTO universidades (usuario_id) VALUES (?)",
-        [userId]
-      );
+      await db.collection("universidades").add({
+        usuario_id: userId,
+        nombre_universidad: "",
+      });
     }
 
     return res.status(201).json({ message: "User registered successfully" });
-
   } catch (err) {
     console.error("REGISTER ERROR:", err);
     return res.status(500).json({ message: "Server error" });
@@ -70,63 +80,57 @@ export async function login(req, res) {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Missing credentials" });
+    if (!email || !password)
+      return res.status(400).json({ message: "Missing credentials" });
+
+    // 1️⃣ Buscar usuario
+    const snapshot = await db
+      .collection("usuarios")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(401).json({ message: "User not found" });
     }
 
-    // Buscar usuario por email
-    const [rows] = await pool.query(
-      "SELECT * FROM usuarios WHERE email = ? LIMIT 1",
-      [email]
-    );
+    const user = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
 
-    if (rows.length === 0) {
-      return res.status(401).json({ success: false, message: "User not found" });
+    // 2️⃣ Validar contraseña
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(401).json({ message: "Invalid password" });
     }
 
-    const user = rows[0];
-
-    // Validar contraseña
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ success: false, message: "Invalid password" });
-    }
-
-    // Crear token
+    // 3️⃣ Crear token
     const token = jwt.sign(
       { id: user.id, role: user.rol },
       process.env.JWT_SECRET || "secret123",
       { expiresIn: "1d" }
     );
 
-    // ================
-    // OBTENER studentId
-    // ================
+    // 4️⃣ Obtener IDs por rol
     let studentId = null;
     let empresaId = null;
 
     if (user.rol === "estudiante") {
-      const [studentRows] = await pool.query(
-        "SELECT id FROM estudiantes WHERE usuario_id = ?",
-        [user.id]
-      );
-
-      if (studentRows.length > 0) {
-        studentId = studentRows[0].id;
-      }
+      const s = await db
+        .collection("estudiantes")
+        .where("usuario_id", "==", user.id)
+        .limit(1)
+        .get();
+      if (!s.empty) studentId = s.docs[0].id;
     }
 
     if (user.rol === "empresa") {
-  const [companyRows] = await pool.query(
-    "SELECT id FROM empresas WHERE usuario_id = ?",
-    [user.id]
-  );
-  if (companyRows.length > 0) empresaId = companyRows[0].id;
-}
+      const e = await db
+        .collection("empresas")
+        .where("usuario_id", "==", user.id)
+        .limit(1)
+        .get();
+      if (!e.empty) empresaId = e.docs[0].id;
+    }
 
-    // ================
-    // RESPUESTA FINAL
-    // ================
     return res.json({
       success: true,
       message: "Login successful",
@@ -134,12 +138,10 @@ export async function login(req, res) {
       userId: user.id,
       role: user.rol,
       studentId,
-      empresaId
+      empresaId,
     });
-
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 }
-

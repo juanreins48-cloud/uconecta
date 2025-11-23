@@ -1,111 +1,124 @@
-// controllers/dashboard.controller.js
-import pool from '../db.js';
+import { db } from "../firebase.js";
 
+// CREATE widget
 export async function createWidget(req, res, next) {
   try {
     const { title, config, data } = req.body;
     const owner_id = req.user.id;
-    const [result] = await pool.query(
-      'INSERT INTO widgets (title, config, data, owner_id) VALUES (?, ?, ?, ?)',
-      [title, JSON.stringify(config || null), JSON.stringify(data || null), owner_id]
-    );
-    res.status(201).json({ id: result.insertId, title });
+
+    const docRef = await db.collection("widgets").add({
+      title,
+      config: config || null,
+      data: data || null,
+      owner_id,
+      created_at: new Date()
+    });
+
+    res.status(201).json({ id: docRef.id, title });
   } catch (err) { next(err); }
 }
 
+// LIST widgets
 export async function listWidgets(req, res, next) {
   try {
-    const [rows] = await pool.query('SELECT id, title, config, data, owner_id, created_at FROM widgets');
-    // parse JSON fields
-    const parsed = rows.map(r => ({ ...r, config: r.config ? JSON.parse(r.config) : null, data: r.data ? JSON.parse(r.data) : null }));
-    res.json(parsed);
+    const snap = await db.collection("widgets").get();
+    const widgets = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json(widgets);
   } catch (err) { next(err); }
 }
 
+// GET widget by ID
 export async function getWidget(req, res, next) {
   try {
-    const [rows] = await pool.query('SELECT * FROM widgets WHERE id = ?', [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
-    const r = rows[0];
-    r.config = r.config ? JSON.parse(r.config) : null;
-    r.data = r.data ? JSON.parse(r.data) : null;
-    res.json(r);
+    const doc = await db.collection("widgets").doc(req.params.id).get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "No encontrado" });
+    }
+
+    res.json({ id: doc.id, ...doc.data() });
   } catch (err) { next(err); }
 }
 
+// UPDATE widget
 export async function updateWidget(req, res, next) {
   try {
     const { title, config, data } = req.body;
-    await pool.query('UPDATE widgets SET title = ?, config = ?, data = ? WHERE id = ?',
-      [title, JSON.stringify(config||null), JSON.stringify(data||null), req.params.id]);
+
+    await db.collection("widgets").doc(req.params.id).update({
+      title,
+      config: config || null,
+      data: data || null
+    });
+
     res.json({ ok: true });
   } catch (err) { next(err); }
 }
 
+// DELETE widget
 export async function deleteWidget(req, res, next) {
   try {
-    await pool.query('DELETE FROM widgets WHERE id = ?', [req.params.id]);
+    await db.collection("widgets").doc(req.params.id).delete();
     res.json({ ok: true });
   } catch (err) { next(err); }
 }
-
 export async function getStudentDashboard(req, res) {
   const { userId } = req.params;
 
   try {
-    // 1. Buscar el ID del estudiante asociado al usuario
-    const [[student]] = await pool.query(
-      "SELECT id FROM estudiantes WHERE usuario_id = ?",
-      [userId]
-    );
+    // obtener estudiante vinculado
+    const snap = await db.collection("estudiantes")
+      .where("usuario_id", "==", userId)
+      .limit(1)
+      .get();
 
-    if (!student) {
+    if (snap.empty) {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    const studentId = student.id;
+    const studentId = snap.docs[0].id;
 
-    // 2. Total aplicaciones enviadas
-    const [[{ applications }]] = await pool.query(
-      "SELECT COUNT(*) AS applications FROM aplicaciones WHERE estudiante_id = ?",
-      [studentId]
-    );
+    // aplicaciones
+    const appsSnap = await db.collection("aplicaciones")
+      .where("estudiante_id", "==", studentId)
+      .get();
 
-    // 3. Entrevistas programadas
-    const [[{ interviews }]] = await pool.query(
-      "SELECT COUNT(*) AS interviews FROM aplicaciones WHERE estudiante_id = ? AND estado = 'entrevista'",
-      [studentId]
-    );
+    const applications = appsSnap.size;
 
-    // 4. Recomendaciones / ofertas aceptadas
-    const [[{ recommendations }]] = await pool.query(
-      "SELECT COUNT(*) AS recommendations FROM aplicaciones WHERE estudiante_id = ? AND estado = 'aceptado'",
-      [studentId]
-    );
+    // entrevistas
+    const interviewsSnap = await db.collection("aplicaciones")
+      .where("estudiante_id", "==", studentId)
+      .where("estado", "==", "entrevista")
+      .get();
 
-    // 5. Vistas al perfil
-    const [[{ views }]] = await pool.query(
-      "SELECT COUNT(*) AS views FROM vistas_perfil WHERE estudiante_id = ?",
-      [studentId]
-    );
+    const interviews = interviewsSnap.size;
 
-    // 6. Actividad reciente (máx 5)
-    const [recent] = await pool.query(
-      `SELECT titulo AS title, tiempo AS time
-       FROM actividad_estudiante
-       WHERE estudiante_id = ?
-       ORDER BY creada_en DESC
-       LIMIT 5`,
-      [studentId]
-    );
+    // aceptado
+    const recSnap = await db.collection("aplicaciones")
+      .where("estudiante_id", "==", studentId)
+      .where("estado", "==", "aceptado")
+      .get();
+
+    const recommendations = recSnap.size;
+
+    // vistas perfil
+    const viewsSnap = await db.collection("vistas_perfil")
+      .where("estudiante_id", "==", studentId)
+      .get();
+
+    const views = viewsSnap.size;
+
+    // actividad reciente
+    const recentSnap = await db.collection("actividad_estudiante")
+      .where("estudiante_id", "==", studentId)
+      .orderBy("creada_en", "desc")
+      .limit(5)
+      .get();
+
+    const recent = recentSnap.docs.map(d => d.data());
 
     return res.json({
-      stats: {
-        applications,
-        interviews,
-        recommendations,
-        views
-      },
+      stats: { applications, interviews, recommendations, views },
       recent
     });
 
@@ -114,62 +127,60 @@ export async function getStudentDashboard(req, res) {
     res.status(500).json({ message: "Server error" });
   }
 }
-
-// =======================================
-// 🔵  DASHBOARD UNIVERSIDAD
-// =======================================
 export async function getUniversityDashboard(req, res) {
   try {
     const { userId } = req.params;
 
-    // obtener el id de universidad
-    const [uni] = await pool.query(
-      "SELECT id FROM universidades WHERE usuario_id = ?",
-      [userId]
-    );
+    // obtener universidad
+    const uniSnap = await db.collection("universidades")
+      .where("usuario_id", "==", userId)
+      .limit(1)
+      .get();
 
-    if (uni.length === 0) {
-      return res.status(400).json({ success: false, message: "University not found" });
+    if (uniSnap.empty) {
+      return res.status(404).json({ error: "Universidad no encontrada" });
     }
 
     // total estudiantes
-    const [students] = await pool.query("SELECT COUNT(*) AS total FROM estudiantes");
+    const studentsSnap = await db.collection("estudiantes").get();
+    const students = studentsSnap.size;
 
     // total empresas
-    const [companies] = await pool.query("SELECT COUNT(*) AS total FROM empresas");
+    const companiesSnap = await db.collection("empresas").get();
+    const companies = companiesSnap.size;
 
     // ofertas activas
-    const [internships] = await pool.query(
-      "SELECT COUNT(*) AS total FROM ofertas WHERE status = 'Active'"
-    );
+    const intSnap = await db.collection("ofertas")
+      .where("status", "==", "Active")
+      .get();
 
-    // success rate → % aceptados
-    const [[{ totalApps }]] = await pool.query(
-      "SELECT COUNT(*) AS totalApps FROM aplicaciones"
-    );
-    const [[{ accepted }]] = await pool.query(
-      "SELECT COUNT(*) AS accepted FROM aplicaciones WHERE estado = 'aceptado'"
-    );
+    const internships = intSnap.size;
 
-    const successRate = totalApps > 0 ? Math.round((accepted / totalApps) * 100) : 0;
+    // success rate
+    const totalAppsSnap = await db.collection("aplicaciones").get();
+    const totalApps = totalAppsSnap.size;
 
-    // actividad reciente → últimas 5 ofertas o aplicaciones
-    const [recent] = await pool.query(`
-        SELECT descripcion, creada_en
-        FROM actividad_empresa
-        ORDER BY creada_en DESC
-        LIMIT 5
-    `);
+    const acceptedSnap = await db.collection("aplicaciones")
+      .where("estado", "==", "aceptado")
+      .get();
 
-    return res.json({
+    const accepted = acceptedSnap.size;
+
+    const successRate =
+      totalApps > 0 ? Math.round((accepted / totalApps) * 100) : 0;
+
+    // actividad reciente
+    const recentSnap = await db.collection("actividad_empresa")
+      .orderBy("creada_en", "desc")
+      .limit(5)
+      .get();
+
+    const recent = recentSnap.docs.map(d => d.data());
+
+    res.json({
       success: true,
-      stats: {
-        students: students[0].total,
-        companies: companies[0].total,
-        internships: internships[0].total,
-        successRate,
-      },
-      recent,
+      stats: { students, companies, internships, successRate },
+      recent
     });
 
   } catch (error) {

@@ -1,6 +1,9 @@
-import pool from "../db.js";
+// controllers/soporte.controller.js
+import { db } from "../db.js";
 
-// POST /api/soporte
+/**
+ * POST /api/soporte
+ */
 export const sendSupportMessage = async (req, res) => {
   try {
     const userId = req.user.id; // viene del middleware requireAuth
@@ -10,10 +13,12 @@ export const sendSupportMessage = async (req, res) => {
       return res.status(400).json({ success: false, message: "Faltan campos" });
     }
 
-    await pool.query(
-      "INSERT INTO soporte (usuario_id, subject, message) VALUES (?, ?, ?)",
-      [userId, subject, message]
-    );
+    await db.collection("soporte").add({
+      usuario_id: String(userId),
+      subject,
+      message,
+      enviada_en: new Date()
+    });
 
     res.json({ success: true, message: "Mensaje enviado correctamente" });
   } catch (err) {
@@ -21,7 +26,10 @@ export const sendSupportMessage = async (req, res) => {
     res.status(500).json({ success: false, message: "Error del servidor" });
   }
 };
-// GET /api/soporte  -> lista de mensajes (solo para rol 'universidad' o admin)
+
+/**
+ * GET /api/soporte  -> lista de mensajes (solo para rol 'universidad' o admin)
+ */
 export const listSupportMessages = async (req, res) => {
   try {
     const user = req.user || {};
@@ -30,22 +38,40 @@ export const listSupportMessages = async (req, res) => {
       return res.status(403).json({ success: false, message: "No autorizado" });
     }
 
-    const [rows] = await pool.query(
-      `SELECT s.id, s.usuario_id, s.subject, s.message, s.enviada_en,
-              u.nombre AS sender_name, u.email AS sender_email
-       FROM soporte s
-       LEFT JOIN usuarios u ON s.usuario_id = u.id
-       ORDER BY s.enviada_en DESC`
-    );
+    // Traer mensajes
+    const snap = await db.collection("soporte").orderBy("enviada_en", "desc").get();
+    if (snap.empty) return res.json({ success: true, data: [] });
 
-    return res.json({ success: true, data: rows });
+    const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Obtener usuarios senders (batch)
+    const userIds = [...new Set(msgs.map(m => m.usuario_id).filter(Boolean))];
+    const usuariosMap = new Map();
+    for (const uid of userIds) {
+      const udoc = await db.collection("usuarios").doc(String(uid)).get();
+      if (udoc.exists) usuariosMap.set(uid, { id: udoc.id, ...udoc.data() });
+    }
+
+    const data = msgs.map(m => ({
+      id: m.id,
+      usuario_id: m.usuario_id,
+      subject: m.subject,
+      message: m.message,
+      enviada_en: m.enviada_en,
+      sender_name: usuariosMap.get(m.usuario_id)?.nombre || null,
+      sender_email: usuariosMap.get(m.usuario_id)?.email || null
+    }));
+
+    return res.json({ success: true, data });
   } catch (err) {
     console.error("Error listing support messages:", err);
     return res.status(500).json({ success: false, message: "Error del servidor" });
   }
 };
 
-// GET /api/soporte/:id -> detalle de un mensaje (solo universidad)
+/**
+ * GET /api/soporte/:id -> detalle de un mensaje (solo universidad)
+ */
 export const getSupportMessage = async (req, res) => {
   try {
     const user = req.user || {};
@@ -54,20 +80,27 @@ export const getSupportMessage = async (req, res) => {
     }
 
     const { id } = req.params;
-    const [rows] = await pool.query(
-      `SELECT s.id, s.usuario_id, s.subject, s.message, s.enviada_en,
-              u.nombre AS sender_name, u.email AS sender_email
-       FROM soporte s
-       LEFT JOIN usuarios u ON s.usuario_id = u.id
-       WHERE s.id = ?`,
-      [id]
-    );
-
-    if (rows.length === 0) {
+    const doc = await db.collection("soporte").doc(String(id)).get();
+    if (!doc.exists) {
       return res.status(404).json({ success: false, message: "Mensaje no encontrado" });
     }
 
-    return res.json({ success: true, data: rows[0] });
+    const m = doc.data();
+    const senderDoc = m.usuario_id ? await db.collection("usuarios").doc(String(m.usuario_id)).get() : null;
+    const sender = senderDoc && senderDoc.exists ? senderDoc.data() : null;
+
+    return res.json({
+      success: true,
+      data: {
+        id: doc.id,
+        usuario_id: m.usuario_id,
+        subject: m.subject,
+        message: m.message,
+        enviada_en: m.enviada_en,
+        sender_name: sender?.nombre || null,
+        sender_email: sender?.email || null
+      }
+    });
   } catch (err) {
     console.error("Error getting support message:", err);
     return res.status(500).json({ success: false, message: "Error del servidor" });

@@ -1,3 +1,4 @@
+// routes/aplicaciones.routes.js
 import express from "express";
 import { applyInternship } from "../controllers/aplicaciones.controller.js";
 

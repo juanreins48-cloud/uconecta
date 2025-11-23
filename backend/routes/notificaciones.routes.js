@@ -1,11 +1,16 @@
+// routes/notificaciones.routes.js
 import { Router } from "express";
-import { getStudentNotifications } from "../controllers/notificaciones.controller.js";
-import { getUniversityNotifications } from "../controllers/notificaciones.controller.js";
+import {
+  getStudentNotifications,
+  getUniversityNotifications
+} from "../controllers/notificaciones.controller.js";
 
 const router = Router();
 
-router.get("/:studentId", getStudentNotifications);
+// ✔ Primero la ruta más específica
 router.get("/universidad/:userId", getUniversityNotifications);
 
+// ✔ Luego la genérica
+router.get("/:studentId", getStudentNotifications);
 
 export default router;

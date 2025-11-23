@@ -1,10 +1,9 @@
 // routes/cv.view.routes.js
 import { Router } from "express";
-import pool from "../db.js";
+import { db } from "../firebase.js";
 
 const router = Router();
 
-// GET CV por estudiante_id
 router.get("/:studentId", async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -13,16 +12,20 @@ router.get("/:studentId", async (req, res) => {
       return res.status(400).json({ success: false, message: "studentId is required" });
     }
 
-    const [rows] = await pool.query(
-      "SELECT estudiante_id, fullName, email, phone, summary, experience, education, skills FROM cv_detalles WHERE estudiante_id = ?",
-      [studentId]
-    );
+    const snap = await db
+      .collection("cv_estudiantes")
+      .doc(studentId)
+      .collection("versiones")
+      .orderBy("actualizado_en", "desc")
+      .limit(1)
+      .get();
 
-    if (rows.length === 0) {
+    if (snap.empty) {
       return res.status(404).json({ success: false, message: "CV not found" });
     }
 
-    return res.json({ success: true, cv: rows[0] });
+    return res.json({ success: true, cv: snap.docs[0].data() });
+
   } catch (err) {
     console.error("Error fetching CV:", err);
     return res.status(500).json({ success: false, message: "Server error", error: err.message });

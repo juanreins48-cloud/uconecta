@@ -1,82 +1,66 @@
 // controllers/companyController.js
-import pool from "../db.js";
+import { db } from "../db.js";
 
-// GET Dashboard Empresa
 export const getDashboard = async (req, res) => {
   const { empresaId } = req.params;
 
   try {
-    // 1️⃣ Estadísticas
+    // 1️⃣ Ofertas activas
+    const ofertasSnap = await db
+      .collection("ofertas")
+      .where("empresa_id", "==", empresaId)
+      .get();
 
-    // Total ofertas activas
-    const [activeOffersResult] = await pool.query(
-      "SELECT COUNT(*) AS activeOffers FROM ofertas WHERE empresa_id = ?",
-      [empresaId]
-    );
-    const activeOffers = activeOffersResult[0].activeOffers;
+    const ofertas = ofertasSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
-    // Total aplicaciones
-    const [applicationsResult] = await pool.query(
-      `SELECT COUNT(*) AS totalApplications
-       FROM aplicaciones a
-       JOIN ofertas o ON a.oferta_id = o.id
-       WHERE o.empresa_id = ?`,
-      [empresaId]
-    );
-    const applications = applicationsResult[0].totalApplications;
+    const activeOffers = ofertas.filter(o => o.status === "Active").length;
 
-    // Total entrevistas
-    const [interviewsResult] = await pool.query(
-      `SELECT COUNT(*) AS totalInterviews
-       FROM aplicaciones a
-       JOIN ofertas o ON a.oferta_id = o.id
-       WHERE o.empresa_id = ? AND a.estado = 'entrevista'`,
-      [empresaId]
-    );
-    const interviews = interviewsResult[0].totalInterviews;
+    // 2️⃣ Total aplicaciones
+    const aplicacionesSnap = await db
+      .collection("aplicaciones")
+      .get();
 
-    // Ofertas cerradas (status 'Closed')
-    const [filledResult] = await pool.query(
-      `SELECT COUNT(*) AS filled
-       FROM ofertas
-       WHERE empresa_id = ? AND status = 'Closed'`,
-      [empresaId]
-    );
-    const filled = filledResult[0].filled;
+    const aplicaciones = aplicacionesSnap.docs.map(doc => doc.data());
 
-    // 2️⃣ Ofertas con número de applicants y status
-    const [offersResult] = await pool.query(
-      `SELECT o.id, o.titulo AS title, 
-              (SELECT COUNT(*) FROM aplicaciones a WHERE a.oferta_id = o.id) AS applicants,
-              o.status
-       FROM ofertas o
-       WHERE o.empresa_id = ?`,
-      [empresaId]
-    );
+    const applications = aplicaciones.filter(a =>
+      ofertas.some(o => o.id === a.oferta_id)
+    ).length;
 
-    // 3️⃣ Recent Activity (últimas 5 actividades)
-    const [recentResult] = await pool.query(
-      `SELECT descripcion AS message, tipo, creada_en AS timestamp
-       FROM actividad_empresa
-       WHERE empresa_id = ?
-       ORDER BY creada_en DESC
-       LIMIT 5`,
-      [empresaId]
-    );
+    // 3️⃣ Total entrevistas
+    const interviews = aplicaciones.filter(
+      a => a.estado === "entrevista" && ofertas.some(o => o.id === a.oferta_id)
+    ).length;
+
+    // 4️⃣ Ofertas cerradas
+    const filled = ofertas.filter(o => o.status === "Closed").length;
+
+    // 5️⃣ Recent activity
+    const recentSnap = await db
+      .collection("actividad_empresa")
+      .where("empresa_id", "==", empresaId)
+      .orderBy("creada_en", "desc")
+      .limit(5)
+      .get();
+
+    const recent = recentSnap.docs.map(doc => doc.data());
 
     res.json({
       stats: {
         activeOffers,
         applications,
         interviews,
-        filled
+        filled,
       },
-      offers: offersResult,
-      recent: recentResult
+      offers: ofertas,
+      recent,
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error al obtener el dashboard de la empresa" });
+    res.status(500).json({
+      message: "Error al obtener el dashboard de la empresa",
+    });
   }
 };

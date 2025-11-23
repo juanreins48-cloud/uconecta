@@ -1,3 +1,4 @@
+// routes/solicitudes.routes.js
 import { Router } from "express";
 import { 
   applyInternship,

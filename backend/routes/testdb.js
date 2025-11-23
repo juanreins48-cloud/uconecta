@@ -1,21 +1,23 @@
+// routes/testdb.js
 import express from "express";
-import pool from "../db.js";
+import { db } from "../firebase.js"; // Firestore
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT NOW() AS now");
+    // simple ping: leer un documento dummy
+    await db.collection("ping").doc("test").set({ time: new Date() });
+
     res.json({
       success: true,
-      message: "DB connection OK",
-      time: rows[0].now,
+      message: "🔥 Firestore connection OK"
     });
   } catch (error) {
-    console.error("DB TEST ERROR:", error);
+    console.error("Firestore TEST ERROR:", error);
     res.status(500).json({
       success: false,
-      message: "DB connection FAILED",
+      message: "Firestore connection FAILED",
       error: error.message,
     });
   }

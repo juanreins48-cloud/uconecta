@@ -1,11 +1,12 @@
+// routes/cv.routes.js
 import { Router } from "express";
-import pool from "../db.js";
+import { db } from "../firebase.js";
 
 const router = Router();
 
-// ======================================
+// =====================================================
 // GUARDAR NUEVA VERSIÓN DEL CV
-// ======================================
+// =====================================================
 router.post("/", async (req, res) => {
   try {
     const { studentId, fullName, email, phone, summary, experience, education, skills } = req.body;
@@ -14,21 +15,21 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ success: false, message: "studentId is required" });
     }
 
-    const [exists] = await pool.query(
-      "SELECT id FROM estudiantes WHERE id = ?",
-      [studentId]
-    );
-
-    if (exists.length === 0) {
-      return res.status(400).json({ success: false, message: "Student not found" });
-    }
-
-    await pool.query(
-      `INSERT INTO cv_estudiantes 
-       (estudiante_id, full_name, email, phone, summary, experience, education, skills)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [studentId, fullName, email, phone, summary, experience, education, skills]
-    );
+    // Guarda como nueva versión
+    await db
+      .collection("cv_estudiantes")
+      .doc(studentId)
+      .collection("versiones")
+      .add({
+        fullName,
+        email,
+        phone,
+        summary,
+        experience,
+        education,
+        skills,
+        actualizado_en: Date.now()
+      });
 
     return res.json({ success: true, message: "CV saved successfully" });
 
@@ -38,27 +39,26 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ======================================
+// =====================================================
 // OBTENER CV MÁS RECIENTE (Estudiante)
-// ======================================
+// =====================================================
 router.get("/:studentId", async (req, res) => {
   try {
     const { studentId } = req.params;
 
-    const [rows] = await pool.query(
-      `SELECT *
-       FROM cv_estudiantes
-       WHERE estudiante_id = ?
-       ORDER BY actualizado_en DESC
-       LIMIT 1`,
-      [studentId]
-    );
+    const snap = await db
+      .collection("cv_estudiantes")
+      .doc(studentId)
+      .collection("versiones")
+      .orderBy("actualizado_en", "desc")
+      .limit(1)
+      .get();
 
-    if (rows.length === 0) {
+    if (snap.empty) {
       return res.status(404).json({ success: false, message: "CV not found" });
     }
 
-    return res.json({ success: true, cv: rows[0] });
+    return res.json({ success: true, cv: snap.docs[0].data() });
 
   } catch (err) {
     console.error("Fetching CV error:", err);
@@ -66,27 +66,26 @@ router.get("/:studentId", async (req, res) => {
   }
 });
 
-// ======================================
-// VER CV DETALLADO (Empresa/Admin)
-// ======================================
+// =====================================================
+// VER CV (Empresa/Admin)
+// =====================================================
 router.get("/view/:studentId", async (req, res) => {
   try {
     const { studentId } = req.params;
 
-    const [rows] = await pool.query(
-      `SELECT *
-       FROM cv_estudiantes
-       WHERE estudiante_id = ?
-       ORDER BY actualizado_en DESC
-       LIMIT 1`,
-      [studentId]
-    );
+    const snap = await db
+      .collection("cv_estudiantes")
+      .doc(studentId)
+      .collection("versiones")
+      .orderBy("actualizado_en", "desc")
+      .limit(1)
+      .get();
 
-    if (rows.length === 0) {
+    if (snap.empty) {
       return res.status(404).json({ success: false, message: "CV not found" });
     }
 
-    return res.json({ success: true, cv: rows[0] });
+    return res.json({ success: true, cv: snap.docs[0].data() });
 
   } catch (err) {
     console.error("Fetching CV error:", err);

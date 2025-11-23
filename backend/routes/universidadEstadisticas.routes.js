@@ -1,3 +1,4 @@
+// routes/universidadEstadisticas.routes.js
 import { Router } from "express";
 import { getUniversityStatistics } from "../controllers/universidadEstadisticas.controller.js";
 

@@ -1,16 +1,21 @@
+// routes/soporte.routes.js
 import express from "express";
-import { sendSupportMessage, listSupportMessages, getSupportMessage } from "../controllers/soporte.controller.js";
+import {
+  sendSupportMessage,
+  listSupportMessages,
+  getSupportMessage
+} from "../controllers/soporte.controller.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Ruta protegida para enviar mensaje de soporte
+// Enviar mensaje
 router.post("/", requireAuth, sendSupportMessage);
 
-// listar mensajes (solo universidad/admin)
+// Listar mensajes (universidad/admin)
 router.get("/", requireAuth, listSupportMessages);
 
-// detalle de mensaje
+// Ver un mensaje
 router.get("/:id", requireAuth, getSupportMessage);
 
 export default router;

@@ -2,18 +2,26 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 dotenv.config();
+
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 export function requireAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth) return res.status(401).json({ error: 'No autorizado' });
+  const authHeader = req.headers.authorization;
 
-  const token = auth.split(' ')[1];
+  if (!authHeader) {
+    return res.status(401).json({ success: false, error: "No autorizado" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ success: false, error: "Token faltante" });
+  }
+
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload;
+    req.user = payload;  // { id, role, email }
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Token inválido' });
+    return res.status(401).json({ success: false, error: "Token inválido" });
   }
 }
