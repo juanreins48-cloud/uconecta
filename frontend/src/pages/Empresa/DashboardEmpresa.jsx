@@ -29,11 +29,27 @@ export default function CompanyDashboard({ empresaId }) {
         const res = await fetch(`${API_URL}/dashboard/empresa/${id}`);
         const data = await res.json();
 
-        setStats(data.stats);
-        setOffers(data.offers);
-        setRecent(data.recent);
+        // Si el backend falla o no devuelve algo, se asigna un valor por defecto
+        setStats(data?.stats || {
+          activeOffers: 0,
+          applications: 0,
+          interviews: 0,
+          filled: 0
+        });
+        setOffers(Array.isArray(data?.offers) ? data.offers : []);
+        setRecent(Array.isArray(data?.recent) ? data.recent : []);
       } catch (err) {
+        console.error("Error fetching company dashboard:", err);
         setError("Error al cargar el dashboard");
+        // Mantener valores por defecto
+        setStats({
+          activeOffers: 0,
+          applications: 0,
+          interviews: 0,
+          filled: 0
+        });
+        setOffers([]);
+        setRecent([]);
       } finally {
         setLoading(false);
       }
